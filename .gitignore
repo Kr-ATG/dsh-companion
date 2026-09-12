@@ -1,0 +1,12 @@
+# 插件自己的 node_modules（如有）不提交。
+node_modules/
+
+# 注意：**不要**忽略 lib/ —— 构建产物必须随仓库提交：
+# pnpm>=10 拦截 git 依赖的 prepare 脚本，安装方不跑构建，
+# lib/index.js + lib/client.js 就是交付物。
+
+# host 不出 source map（DSH 没开 --enable-source-maps，纯占体积），见 build.mjs。
+lib/index.js.map
+
+# 一次性迁移脚本已执行完毕，不进仓库。
+scripts/convert-mp-client.mjs

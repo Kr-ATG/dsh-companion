@@ -1,0 +1,324 @@
+/**
+ * Chat conversation view, scroll restoration, and message history.
+ */
+import { state, chat, runtime } from '../../state/state.js'
+import { el, rootEl } from '../../utils/dom.js'
+import { formatBytes } from '../../utils/time.js'
+import { call } from '../../net/rpc.js'
+import { commitLocation, navBack, persistRoute } from '../../state/route.js'
+import { EventFolder, foldEvents, toWireEvent, seedSessionTitleFromPage, sessionTitle } from '../../chat/fold.js'
+import { seedTodosFromPage, renderTodoDock, applyTodoEventsAfter, standingTodos, todoWatermark } from '../todo.js'
+import { messageHtml, isHiddenSystemMessage } from '../markdown.js'
+import { renderApprovalPanel, renderQuestionPanel } from '../../chat/approvals.js'
+import { removeComposerImage, clearAttachments, removeAttachment, isImageAttachment } from '../../chat/upload.js'
+import { renderSlashMenu, loadSlashCatalog } from '../../chat/slash.js'
+import { ensureComposer, buildInputbar, syncInputbar, syncComposerDraft, setDraft } from '../../chat/composer.js'
+import { reconcileOutbox, openOutbox } from '../../chat/outbox.js'
+import { ensureLive, startPendingPoll } from '../../net/pending.js'
+import { renderQuotaBar } from '../../net/quota.js'
+import { captureChatScroll, applyChatScroll, captureTodoScroll, applyTodoScroll, onChatScroll } from '../../utils/scroll.js'
+import { composerSrc, openImageLightbox } from '../lightbox.js'
+import { headerIcon, themeToggle, reloadButton, headerActions, pwaButton, globalSettingsButton } from '../theme.js'
+import { stopMuxObservation, ensureMux } from '../../net/mux.js'
+import { render } from './render.js'
+import { ensureDrawer, toggleDrawer } from '../drawer.js'
+import { createTodaySession } from './session-create.js'
+
+
+export async function loadTail() {
+    const sid = state.session && state.session.sessionId
+    if (!sid) return
+    chat.loading = true
+    chat.tailLoading = true
+    chat.liveBuffer = []
+    chat.overflow = false
+    chat.folder = null
+    chat.messages = []
+    render()
+    try {
+      const page = await call('session.history', { sessionId: sid, maxMessages: 30 })
+      if (state.session?.sessionId !== sid) return
+      // Buffered live events re-fold on top of the snapshot; the watermark
+      // drops any the snapshot already includes, so nothing is lost or doubled.
+      const buffered = chat.liveBuffer
+      chat.liveBuffer = []
+      chat.tailLoading = false
+      const folder = new EventFolder(foldEvents((page.events || []).map(toWireEvent)))
+      chat.folder = folder
+      chat.messages = folder.fold(buffered)
+      chat.hasOlder = Boolean(page.hasMore)
+      seedTodosFromPage(sid, page, buffered)
+      seedSessionTitleFromPage(sid, page)
+      reconcileOutbox(sid)
+      state.error = ''
+      // The buffer overflowed while waiting (oldest events were dropped), so
+      // re-pull the freshest history page to close the gap on top of what is
+      // already rendered. Best-effort: a failure here only ignores, it must
+      // not replace the loaded state with an error.
+      if (chat.overflow) {
+        chat.overflow = false
+        try {
+          const fresh = await call('session.history', { sessionId: sid, maxMessages: 30 })
+          if (state.session?.sessionId !== sid) return
+          chat.messages = folder.fold((fresh.events || []).map(toWireEvent))
+          seedTodosFromPage(sid, fresh)
+          seedSessionTitleFromPage(sid, fresh)
+          reconcileOutbox(sid)
+        } catch { /* best-effort */ }
+      }
+    } catch (err) {
+      if (state.session?.sessionId !== sid) return
+      // Load failed: flush the buffer so the live stream still renders.
+      const buffered = chat.liveBuffer
+      chat.liveBuffer = []
+      chat.tailLoading = false
+      if (chat.folder === null) chat.folder = new EventFolder()
+      if (buffered.length > 0) chat.messages = chat.folder.fold(buffered)
+      chat.todos = applyTodoEventsAfter([], buffered)
+      reconcileOutbox(sid)
+      state.error = String(err.message || err)
+    } finally {
+      if (state.session?.sessionId !== sid) return
+      chat.loading = false
+      render()
+    }
+  }
+
+export async function loadOlder() {
+    const oldest = chat.messages[0]
+    if (!oldest) return
+    try {
+      const page = await call('session.history', {
+        sessionId: state.session.sessionId,
+        maxMessages: 30,
+        beforeSeq: Math.max(1, oldest.seq - 1),
+      })
+      const existing = document.querySelector('.chat-scroll')
+      runtime.prependAdjust = existing
+        ? { height: existing.scrollHeight, top: existing.scrollTop }
+        : null
+      runtime.chatScroll.stick = false
+      const olderMsgs = foldEvents((page.events || []).map(toWireEvent))
+      chat.folder.prepend(olderMsgs)
+      chat.messages = chat.folder.snapshot()
+      chat.hasOlder = Boolean(page.hasMore)
+      render()
+    } catch (err) {
+      runtime.prependAdjust = null
+      state.error = String(err.message || err)
+      render()
+    }
+  }
+
+export async function openChat(session, opts = {}) {
+    const q = ++runtime.chatQuery
+    state.session = session
+    state.view = 'chat'
+    setDraft('')
+    clearAttachments()
+    state.sending = false
+    runtime.lastMsgScrollKey = null
+    runtime.chatScroll.stick = true
+    runtime.chatScroll.top = 0
+    runtime.chatScroll.restoring = false
+    runtime.todoScroll.top = 0
+    runtime.todoScroll.stick = true
+    todoWatermark.delete(session.sessionId)
+    chat.todos = null
+    chat.approvals = []
+    chat.questions = []
+    const live = ensureLive(session.sessionId)
+    live.completed = false
+    state.running = live.running === true || session.running === true
+    const mode = opts.locationMode || 'push'
+    if (state.workspace && state.workspace.workspaceId) {
+      const loc = { view: 'chat', workspaceId: state.workspace.workspaceId, sessionId: session.sessionId }
+      if (mode !== 'none') commitLocation(loc, mode)
+      else persistRoute(loc)
+    }
+    render()
+    if (q !== runtime.chatQuery) return
+    await ensureMux()
+    if (q !== runtime.chatQuery) return
+    runtime.mux.observe(session.sessionId)
+    // Best-effort current model for the settings row (the sheet re-reads the
+    // directory on every open) — old-plugin parity.
+    void call('session.models', { sessionId: session.sessionId }).then((data) => {
+      if (q !== runtime.chatQuery) return
+      chat.currentModel = data.current
+      if (state.view === 'chat') render()
+    }).catch(() => { /* settings row falls back to a plain label */ })
+    void loadSlashCatalog(session.sessionId)
+    startPendingPoll()
+    // loadTail 内部完成时会 render（贴底 rAF 指向它构建的 scroller）；
+    // 这里不能再 render 一次——那会让上一个 rAF 失效并恢复 prevTop=0（Bug #1042）
+    await loadTail()
+  }
+
+export function renderChatParts() {
+    // Opening a session (null key) pins to the bottom. After that, stick only
+    // while the user is already near the bottom — never yank a reader back to
+    // the top, and never fight a deliberate upward scroll.
+    const localPending = openOutbox()
+    const last = localPending.length ? localPending[localPending.length - 1] : chat.messages[chat.messages.length - 1]
+    const lastId = last === undefined ? undefined : last.id
+    if (runtime.lastMsgScrollKey === null) runtime.chatScroll.stick = true
+    if (lastId !== undefined) runtime.lastMsgScrollKey = lastId
+
+    const scroller = el('div', { class: 'chat-scroll', onscroll: onChatScroll })
+    if (chat.hasOlder) {
+      scroller.append(el('button', { type: 'button', class: 'chat-load-older', onclick: () => void loadOlder() }, ['加载更早消息']))
+    }
+    if (chat.loading && chat.messages.length === 0 && localPending.length === 0) {
+      scroller.append(el('div', { class: 'chat-typing' }, ['加载中…']))
+    }
+    let visible = 0
+    for (const m of chat.messages) {
+      if (isHiddenSystemMessage(m)) continue
+      visible += 1
+      scroller.append(messageHtml(m))
+    }
+    for (const m of localPending) {
+      visible += 1
+      scroller.append(messageHtml(m))
+    }
+    if (visible === 0 && !chat.loading) {
+      scroller.append(el('div', { class: 'chat-typing' }, ['还没有消息，发一句试试']))
+    }
+    for (const approval of chat.approvals) scroller.append(renderApprovalPanel(approval))
+    for (const group of chat.questions) scroller.append(renderQuestionPanel(group))
+
+    const pics = state.attachments.length
+      ? el('div', { class: 'composer-pics' }, state.attachments.map((att) => {
+          const remove = el('button', {
+            type: 'button',
+            class: 'composer-pic-remove',
+            'aria-label': '移除附件',
+            onclick: (ev) => { ev.stopPropagation(); removeAttachment(att.id) },
+          }, ['×'])
+          const overlay = att.status === 'uploading'
+            ? el('div', { class: 'composer-pic-progress' }, [`${Math.round((att.progress || 0) * 100)}%`])
+            : att.status === 'failed'
+              ? el('div', { class: 'composer-pic-progress' }, ['失败'])
+              : null
+          if (isImageAttachment(att) && att.preview) {
+            return el('div', { class: `composer-pic${att.status === 'failed' ? ' is-failed' : ''}` }, [
+              el('button', {
+                type: 'button',
+                class: 'composer-pic-open',
+                'aria-label': att.name ? `放大查看 ${att.name}` : '放大查看即将发送的图片',
+                onclick: () => openImageLightbox(att.preview),
+              }, [el('img', { src: att.preview, alt: att.name || '' })]),
+              overlay,
+              remove,
+            ])
+          }
+          return el('div', { class: `composer-file${att.status === 'failed' ? ' is-failed' : ''}` }, [
+            el('div', { class: 'composer-file-name' }, [att.name || '文件']),
+            el('div', { class: 'composer-file-meta' }, [
+              att.status === 'uploading'
+                ? `上传 ${Math.round((att.progress || 0) * 100)}%`
+                : att.status === 'failed'
+                  ? (att.error || '失败')
+                  : formatBytes(att.size),
+            ]),
+            remove,
+          ])
+        }))
+      : null
+
+    const currentTitle = state.session ? sessionTitle(state.session) : '你能做什么？'
+    const wsName = state.workspace?.title || '云端'
+
+    return {
+      header: el('header', { class: 'mobile-header' }, [
+        el('button', {
+          type: 'button',
+          class: 'mp-header-menu-btn',
+          'aria-label': '打开导航侧边栏',
+          title: '菜单',
+          onclick: toggleDrawer,
+        }, [
+          el('span', {
+            html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/></svg>',
+          }),
+        ]),
+        el('div', { class: 'mp-header-center' }, [
+          el('h1', {
+            class: 'mp-header-title',
+            title: currentTitle,
+          }, [currentTitle]),
+          el('div', { class: 'mp-header-sub' }, [
+            el('span', {
+              html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+            }),
+            wsName,
+          ]),
+        ]),
+        el('div', { class: 'mp-header-capsule' }, [
+          el('button', {
+            type: 'button',
+            class: 'mp-capsule-btn',
+            'aria-label': '新建任务',
+            title: '新建任务',
+            onclick: () => void createTodaySession(),
+          }, [
+            el('span', {
+              html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 8v6M9 11h6"/></svg>',
+            }),
+          ]),
+          el('button', {
+            type: 'button',
+            class: 'mp-capsule-btn',
+            'aria-label': '历史任务',
+            title: '历史任务',
+            onclick: toggleDrawer,
+          }, [
+            el('span', {
+              html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="3"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>',
+            }),
+          ]),
+        ]),
+      ]),
+      error: state.error ? el('p', { class: 'mobile-error mobile-pad' }, [state.error]) : null,
+      status: state.running ? el('div', { class: 'chat-turn-status' }, [
+        el('span', { class: 'chat-turn-dots' }, [el('span'), el('span'), el('span')]),
+        '正在输出',
+      ]) : null,
+      scroller,
+      todos: renderTodoDock(standingTodos()),
+      pics,
+      slash: renderSlashMenu(),
+    }
+  }
+
+export function chatAboveBar(parts) {
+    return [parts.header, parts.error, parts.status, parts.scroller, parts.todos, parts.pics, parts.slash].filter(Boolean)
+  }
+
+export function applyChatPage() {
+    captureChatScroll()
+    captureTodoScroll()
+    ensureDrawer()
+    const parts = renderChatParts()
+    const above = chatAboveBar(parts)
+    let page = rootEl.querySelector(':scope > .mobile.chat')
+    if (!page) {
+      page = el('div', { class: 'mobile chat' }, [...above, buildInputbar()])
+      rootEl.replaceChildren(page)
+    } else {
+      const liveBar = page.querySelector(':scope > .chat-inputbar')
+      for (const child of [...page.children]) {
+        if (child !== liveBar) child.remove()
+      }
+      if (liveBar) {
+        for (const node of above) page.insertBefore(node, liveBar)
+        syncInputbar(liveBar)
+      } else {
+        for (const node of above) page.append(node)
+        page.append(buildInputbar())
+      }
+    }
+    applyChatScroll(page.querySelector('.chat-scroll'))
+    applyTodoScroll(page.querySelector('.todo-dock-list'))
+  }

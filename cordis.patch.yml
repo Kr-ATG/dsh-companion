@@ -1,0 +1,17 @@
+# 由 `dsh plugin add` 自动并入 profile，不要手工编辑 profile 的那份；
+# 要覆盖就在 profile 自己的 cordis.patch.yml（更晚的层）里改。
+#
+# publicBaseUrl 配成你自己的公网入口（二维护码就指向它）；改完重启 dsh web。
+# fixedPairCode：固定配对码（4~64 位，字母数字与 . _ ~ -）。手机输一次即自动记住，
+#   重启服务、cookie 失效都能静默重配，不再依赖扫码。也可用环境变量 DSH_MOBILE_PAIR_CODE。
+# tokenPushUrl：每次启动/签发后把最新一次性配对链接 POST 到这个接收端
+#   （反代服务器上的小接口、ntfy 等），手机从服务器取 token。可用环境变量 DSH_MOBILE_PUSH_URL。
+#   需要认证头时配 tokenPushHeaders，如 { Authorization: "Basic xxx" }。
+# grantWebSession：true 时已配对手机自动领 dsh web 会话 cookie，开全量界面免扫码、跨重启有效
+#   （入口书签 /mp/web）。默认关。
+- insert:
+    - id: dsh-companion
+      name: dsh-companion
+      config:
+        enabled: true
+        publicBaseUrl: https://dsh.example.com   # 换成你自己的公网入口；没有公网就删掉这行

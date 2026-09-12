@@ -1,0 +1,573 @@
+/* ── DSH 伴侣插件：全新现代暗色风格层（对齐最新移动端设计） ── */
+
+:root {
+  --mp-bg: #121315;
+  --mp-bg-surface: #18191c;
+  --mp-bg-card: #202226;
+  --mp-bg-card-active: #282a2f;
+  --mp-border: #2c2f35;
+  --mp-border-subtle: rgba(255, 255, 255, 0.08);
+  --mp-text: #f0f2f5;
+  --mp-text-secondary: #9aa0a6;
+  --mp-text-tertiary: #6b7280;
+  --mp-bubble-user: #333a42;
+  --mp-accent: #38bdf8;
+  --mp-accent-green: #34d399;
+}
+
+body {
+  background: var(--mp-bg);
+  color: var(--mp-text);
+}
+
+/* ── 顶栏现代化重构 ── */
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: calc(env(safe-area-inset-top, 0px) + 52px) !important;
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) 14px 6px !important;
+  background: var(--mp-bg) !important;
+  border-bottom: 1px solid var(--mp-border-subtle) !important;
+  box-sizing: border-box;
+}
+
+/* 左侧汉堡圆钮 */
+.mp-header-menu-btn {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--mp-bg-card);
+  border: 1px solid var(--mp-border);
+  color: var(--mp-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.mp-header-menu-btn:active {
+  transform: scale(0.92);
+  background: var(--mp-bg-card-active);
+}
+
+/* 中间标题与「云端」副标题 */
+.mp-header-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 8px;
+  text-align: center;
+}
+.mp-header-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.mp-header-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--mp-text-secondary);
+  line-height: 1;
+}
+.mp-header-sub svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  color: var(--mp-text-secondary);
+}
+
+/* 右侧操作胶囊（新对话 + 会话卡片） */
+.mp-header-capsule {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 4px;
+  gap: 2px;
+  background: var(--mp-bg-card);
+  border: 1px solid var(--mp-border);
+  border-radius: 999px;
+}
+.mp-capsule-btn {
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--mp-text);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.mp-capsule-btn svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+.mp-capsule-btn:active {
+  background: var(--mp-bg-card-active);
+  opacity: 0.8;
+}
+
+/* ── 侧边栏抽屉导航（Drawer） ── */
+.mp-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s ease;
+}
+.mp-drawer-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mp-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  width: 82%;
+  max-width: 320px;
+  background: var(--mp-bg-surface);
+  border-right: 1px solid var(--mp-border);
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  box-sizing: border-box;
+}
+.mp-drawer.is-open {
+  transform: translateX(0);
+}
+
+/* 抽屉顶部：云端切换 + 新建任务大胶囊 */
+.mp-drawer-top {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mp-drawer-ws-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  align-self: flex-start;
+  -webkit-tap-highlight-color: transparent;
+}
+.mp-drawer-ws-btn svg.ws-cloud-icon {
+  width: 19px;
+  height: 19px;
+  color: #ffffff;
+}
+.mp-drawer-ws-btn svg.ws-chevron-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--mp-text-secondary);
+}
+.mp-drawer-ws-btn:active {
+  background: var(--mp-border-subtle);
+}
+
+.mp-drawer-new-task-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--mp-border);
+  border-radius: 999px;
+  background: var(--mp-bg-card);
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.mp-drawer-new-task-btn:active {
+  transform: scale(0.97);
+  background: var(--mp-bg-card-active);
+}
+.mp-drawer-new-task-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* 抽屉分类头（更早 + 列表图标） */
+.mp-drawer-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 4px 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--mp-text-secondary);
+}
+.mp-drawer-group-icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  color: var(--mp-text-secondary);
+}
+
+/* 会话卡片列表 */
+.mp-drawer-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 0 10px;
+}
+.mp-drawer-item {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 14.5px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.mp-drawer-item:active {
+  background: var(--mp-bg-card);
+}
+.mp-drawer-item.is-active {
+  background: var(--mp-bg-card);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* 抽屉底部用户卡片（静 + 体验版 | ✧ 500） */
+.mp-drawer-profile {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--mp-border);
+  cursor: pointer;
+}
+.mp-drawer-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #1b2620;
+  color: var(--mp-accent-green);
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mp-drawer-user-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mp-drawer-username {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-drawer-quota-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--mp-text-secondary);
+}
+.mp-drawer-quota-tag span.sep {
+  opacity: 0.4;
+}
+
+/* ── 消息流与气泡样式重构 ── */
+.chat-scroll {
+  background: var(--mp-bg) !important;
+  padding: 16px 14px calc(var(--m-kb-bottom) + 20px) !important;
+  gap: 18px !important;
+}
+
+/* 用户气泡：深灰暗调（去蓝底，贴合截图） */
+.chat-msg-user {
+  background: var(--mp-bubble-user) !important;
+  color: #ffffff !important;
+  border-radius: 18px 18px 4px 18px !important;
+  padding: 10px 15px !important;
+  font-size: 15px !important;
+  box-shadow: none !important;
+  border: none !important;
+  max-width: 86% !important;
+  line-height: 1.55 !important;
+}
+.chat-msg-user .chat-msg-time {
+  display: none !important;
+}
+
+/* 助手排版：无框纯净文本 */
+.chat-msg-assistant {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--mp-text) !important;
+  padding: 2px 2px !important;
+  max-width: 100% !important;
+  font-size: 15.5px !important;
+  line-height: 1.65 !important;
+}
+.chat-msg-assistant .chat-msg-time {
+  display: none !important;
+}
+
+/* 助手操作条（复制 / 点赞 / 点踩 / 朗读 / 重试） */
+.mp-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+  padding-left: 2px;
+}
+.mp-action-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: var(--mp-text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+.mp-action-btn svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+.mp-action-btn:active {
+  transform: scale(0.9);
+  color: #ffffff;
+}
+.mp-action-btn.is-active {
+  color: var(--mp-accent);
+}
+.mp-action-btn.is-speaking {
+  color: var(--mp-accent-green);
+  animation: mp-pulse 1.2s infinite;
+}
+@keyframes mp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Toast 提示 */
+.mp-toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: rgba(30, 32, 36, 0.92);
+  border: 1px solid var(--mp-border);
+  color: #ffffff;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  z-index: 120;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.mp-toast.is-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── 底部复合胶囊输入条（声波 ·)) + 文本框 + +号） ── */
+.chat-inputbar {
+  background: var(--mp-bg) !important;
+  border-top: none !important;
+  padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+  box-sizing: border-box;
+}
+
+.mp-input-pill {
+  flex: 1;
+  min-height: 48px;
+  background: var(--mp-bg-surface);
+  border: 1px solid var(--mp-border);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  padding: 4px 6px 4px 12px;
+  gap: 8px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+.mp-input-pill:focus-within {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* 声波按钮 ·)) */
+.mp-voice-btn {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--mp-text-secondary);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+.mp-voice-btn svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+.mp-voice-btn:active,
+.mp-voice-btn.is-recording {
+  color: var(--mp-accent-green);
+  transform: scale(0.92);
+}
+
+/* 核心输入框 */
+.mp-input-pill .chat-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  min-height: 24px;
+  max-height: 110px;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  line-height: 24px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  resize: none !important;
+  outline: none !important;
+}
+.mp-input-pill .chat-input::placeholder {
+  color: var(--mp-text-tertiary);
+  font-size: 14.5px;
+}
+
+/* 附件加号圆钮 */
+.mp-attach-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--mp-bg-card);
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.mp-attach-btn:active {
+  transform: scale(0.92);
+  background: var(--mp-bg-card-active);
+}
+.mp-attach-btn svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+/* 发送圆钮（有字时显示箭头，或停止输出状态） */
+.mp-send-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.mp-send-btn:active {
+  transform: scale(0.92);
+}
+.mp-send-btn svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+.mp-send-btn.is-stop {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* 隐藏旧版不需要的元素 */
+.mobile-header-actions,
+.mobile-titleInline {
+  display: none !important;
+}
