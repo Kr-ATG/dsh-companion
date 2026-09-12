@@ -87,7 +87,15 @@ export function syncDrawerList() {
   if (!list) return
 
   const currentSid = state.session?.sessionId
-  const sessions = state.sessions || []
+  const rawSessions = state.sessions || []
+  // 过滤掉无内容的历史空会话（仅保留当前正在交互的会话，或有实际消息/标题的有效会话）
+  const sessions = rawSessions.filter((s) => {
+    if (s.sessionId === currentSid) return true
+    if (s.blank && (!s.turns || s.turns === 0) && !s.title && !s.projections?.values?.title) {
+      return false
+    }
+    return true
+  })
 
   if (sessions.length === 0) {
     list.replaceChildren(

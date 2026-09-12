@@ -1,5 +1,5 @@
 /* PWA worker for the /mp mobile shell only — never caches API or session data. */
-const CACHE_NAME = 'dsh-mobile-plus-shell-v5'
+const CACHE_NAME = 'dsh-companion-shell-v1.0.6'
 const OFFLINE_URL = '/mp/offline.html'
 const SHELL_PATHS = new Set([
   '/mp/',
@@ -12,15 +12,23 @@ const SHELL_PATHS = new Set([
 ])
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting()
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.add(OFFLINE_URL)))
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(
-    keys
-      .filter((key) => key.startsWith('dsh-mobile-plus-shell-') && key !== CACHE_NAME)
-      .map((key) => caches.delete(key)),
-  )))
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => (key.startsWith('dsh-mobile-plus-shell-') || key.startsWith('dsh-companion-shell-')) && key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
+        ),
+      ),
+    ]),
+  )
 })
 
 /* 点通知：已开的同页窗口聚焦并导航到对应会话，否则新开窗口。 */

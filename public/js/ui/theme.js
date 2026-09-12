@@ -16,20 +16,27 @@ export function storedTheme() {
   }
 
 export function isDarkTheme() {
-    const saved = storedTheme()
-    if (saved === 'dark') return true
-    return false // 默认纯白清爽主题
+    return false // 全面统一为现代纯白清爽风格
   }
 
 export function applyTheme() {
-    const dark = isDarkTheme()
-    document.documentElement.dataset.theme = dark ? 'dark' : ''
+    document.documentElement.dataset.theme = ''
+    const color = '#ffffff'
     
-    document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove())
-    let meta = document.createElement('meta')
-    meta.name = 'theme-color'
-    meta.content = dark ? '#121315' : '#ffffff'
-    document.head.appendChild(meta)
+    const metas = document.querySelectorAll('meta[name="theme-color"]')
+    if (metas.length > 0) {
+      metas.forEach(m => m.setAttribute('content', color))
+    } else {
+      const meta = document.createElement('meta')
+      meta.name = 'theme-color'
+      meta.content = color
+      document.head.appendChild(meta)
+    }
+
+    const appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+    if (appleMeta) {
+      appleMeta.setAttribute('content', 'default')
+    }
   }
 
 export function toggleTheme() {

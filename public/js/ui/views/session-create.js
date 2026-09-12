@@ -11,6 +11,16 @@ import { loadWorkspaces } from './ws-view.js'
 
 export async function createSessionInWorkspace(ws) {
   if (state.creating || !ws) return
+  // 若当前已处于尚未发送过任何消息的空会话中，直接复用当前空会话，避免产生冗余空会话
+  if (
+    state.session &&
+    state.session.blank &&
+    (!state.session.turns || state.session.turns === 0) &&
+    state.session.workspaceId === ws.workspaceId
+  ) {
+    await openChat(state.session, { locationMode: 'replace' })
+    return
+  }
   state.creating = true
   state.creatingWorkspaceId = ws.workspaceId
   state.workspace = ws
