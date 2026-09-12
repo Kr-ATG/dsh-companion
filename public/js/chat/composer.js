@@ -137,7 +137,7 @@ export function ensureComposer() {
     if (runtime.composerNode) return runtime.composerNode
     runtime.composerNode = el('textarea', {
       class: 'chat-input',
-      placeholder: '发消息或按住说话',
+      placeholder: '输入消息…',
       rows: 1,
       enterkeyhint: composerReturnIsNewline() ? 'enter' : 'send',
       autocomplete: 'off',
@@ -200,7 +200,6 @@ export function makeAttachButton() {
 
 export function buildInputbar() {
     const pill = el('div', { class: 'mp-input-pill' }, [
-      makeVoiceButton(),
       ensureComposer(),
       makeAttachButton(),
     ])

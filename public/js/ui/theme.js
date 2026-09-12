@@ -17,8 +17,8 @@ export function storedTheme() {
 
 export function isDarkTheme() {
     const saved = storedTheme()
-    if (saved === 'light') return false
-    return true // 默认深色沉浸主题
+    if (saved === 'dark') return true
+    return false // 默认纯白清爽主题
   }
 
 export function applyTheme() {

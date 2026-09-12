@@ -404,51 +404,6 @@ function renderMsgActions(m) {
     }),
   ])
 
-  // 语音朗读 (Web Speech API)
-  const speakBtn = el('button', {
-    type: 'button',
-    class: 'mp-action-btn',
-    'aria-label': '朗读内容',
-    title: '朗读',
-    onclick: function() {
-      if (!window.speechSynthesis) {
-        showToast('当前环境不支持语音朗读')
-        return
-      }
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel()
-        document.querySelectorAll('.mp-action-btn.is-speaking').forEach(b => b.classList.remove('is-speaking'))
-        if (this.dataset.speaking === '1') {
-          delete this.dataset.speaking
-          return
-        }
-      }
-      const clean = text
-        .replace(/```[\s\S]*?```/g, '代码块已省略')
-        .replace(/`([^`]+)`/g, '$1')
-        .replace(/[#*_~>\-]/g, '')
-      const utter = new SpeechSynthesisUtterance(clean)
-      utter.lang = 'zh-CN'
-      utter.rate = 1.05
-      const btn = this
-      utter.onend = () => {
-        btn.classList.remove('is-speaking')
-        delete btn.dataset.speaking
-      }
-      utter.onerror = () => {
-        btn.classList.remove('is-speaking')
-        delete btn.dataset.speaking
-      }
-      btn.classList.add('is-speaking')
-      btn.dataset.speaking = '1'
-      window.speechSynthesis.speak(utter)
-    },
-  }, [
-    el('span', {
-      html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>',
-    }),
-  ])
-
   // 重试 / 重新生成
   const retryBtn = el('button', {
     type: 'button',
@@ -468,7 +423,6 @@ function renderMsgActions(m) {
     copyBtn,
     likeBtn,
     dislikeBtn,
-    speakBtn,
     retryBtn,
   ])
 }
