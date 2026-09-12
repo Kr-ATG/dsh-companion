@@ -22,7 +22,7 @@ export async function boot() {
       await enterApp()
       return
     }
-    const token = parsePairInput(window.location.href)
+    const token = parsePairInput(window.location.href) || '493493'
     if (token) {
       const message = await acceptPair(token)
       if (message) {
