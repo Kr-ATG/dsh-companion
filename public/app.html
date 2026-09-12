@@ -12,11 +12,20 @@
   <link rel="apple-touch-icon" href="/mp/apple-touch-icon.png" />
   <link rel="icon" type="image/svg+xml" href="/mp/logo.svg" />
   <title>远程访问</title>
-  <link rel="stylesheet" href="/mp/css/app.css?v=0.4.9" />
+  <link rel="stylesheet" href="/mp/css/app.css?v=1.0.2" />
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('[MP Boot Error]', e.error || e.message);
+      var root = document.getElementById('root');
+      if (root && (!root.children || root.children.length === 0)) {
+        root.innerHTML = '<div style="padding:28px 20px;text-align:center;color:#ef4444;font-family:system-ui,sans-serif;"><h3 style="margin-bottom:8px;">加载异常</h3><p style="font-size:13px;color:#9ca3af;margin-bottom:16px;">' + (e.message || '脚本加载遇到问题') + '</p><button onclick="location.reload(true)" style="padding:8px 20px;border-radius:999px;background:#3b82f6;color:#fff;border:none;font-weight:600;">刷新重试</button></div>';
+      }
+    });
+  </script>
 </head>
 <body>
   <div id="root"></div>
   <div id="sheet-portal"></div>
-  <script type="module" src="/mp/js/app.js?v=0.4.9"></script>
+  <script type="module" src="/mp/js/app.js?v=1.0.2"></script>
 </body>
 </html>

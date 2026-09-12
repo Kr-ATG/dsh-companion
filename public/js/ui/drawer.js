@@ -7,8 +7,7 @@ import { el, workspaceTitle } from '../utils/dom.js'
 import { sessionTitle } from '../chat/fold.js'
 import { openChat } from './views/chat-view.js'
 import { createTodaySession } from './views/session-create.js'
-import { openWorkspacePickerSheet } from './sheets.js'
-import { openGlobalSettingsSheet } from './sheets/settings.js'
+import { openWorkspacePickerSheet, switchSheet } from './sheets.js'
 import { loadSessions } from './views/session-list-data.js'
 
 let drawerEl = null
@@ -152,7 +151,7 @@ export function ensureDrawer() {
       class: 'mp-drawer-profile',
       onclick: () => {
         closeDrawer()
-        openGlobalSettingsSheet()
+        switchSheet('settings')
       },
     }, [
       el('div', { class: 'mp-drawer-avatar' }, ['静']),
