@@ -37,6 +37,12 @@ export function applyTheme() {
     if (appleMeta) {
       appleMeta.setAttribute('content', 'default')
     }
+
+    try {
+      if (window.AndroidShell && typeof window.AndroidShell.setStatusBarColor === 'function') {
+        window.AndroidShell.setStatusBarColor(color, true)
+      }
+    } catch { /* ignore */ }
   }
 
 export function toggleTheme() {
