@@ -50,7 +50,7 @@ const POP_RECENT_N = 5
 /** 弹窗展示的进行中条数。 */
 const POP_RUNNING_N = 5
 /** 弹窗宽度（px）。 */
-const POP_W = 340
+const POP_W = 440
 /** hover 离开后延迟关闭（ms）：给鼠标从卡片滑到弹窗留出桥接时间。 */
 const CLOSE_DELAY_MS = 150
 
@@ -129,6 +129,21 @@ function formatElapsed(ms: number): string {
   const ss = total % 60
   if (hh > 0) return `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
   return `${mm}:${String(ss).padStart(2, '0')}`
+}
+
+/**
+ * 最近完成按分钟分组（formatTime 同键即同组）：时间升级为一级菜单组头，
+ * 同一分钟的多条消息归入一个分类。列表按完成时间倒序，相邻同键合并即可。
+ */
+function groupByMinute(items: DoneEntry[]): Array<{ time: string; items: DoneEntry[] }> {
+  const groups: Array<{ time: string; items: DoneEntry[] }> = []
+  for (const item of items) {
+    const time = formatTime(item.endedAt)
+    const last = groups[groups.length - 1]
+    if (last !== undefined && last.time === time) last.items.push(item)
+    else groups.push({ time, items: [item] })
+  }
+  return groups
 }
 
 // ---- 底部布局修正（注入式 CSS，不改 DSH / 其他插件源码）----
@@ -409,6 +424,38 @@ const rowTimeStyle: CSSProperties = {
   fontSize: 11,
   color: 'var(--dpl-fg-weak)',
   fontVariantNumeric: 'tabular-nums',
+}
+
+/** 回合小标签：发丝描边圆角胶囊，放在行右侧（时间已升级为组头）。 */
+const turnTagStyle: CSSProperties = {
+  flex: 'none',
+  padding: '1px 7px',
+  borderRadius: 999,
+  border: '1px solid var(--dpl-panel-border)',
+  color: 'var(--dpl-fg-dim)',
+  fontSize: 11,
+  lineHeight: '16px',
+  whiteSpace: 'nowrap',
+  fontVariantNumeric: 'tabular-nums',
+}
+
+/** 时间组头（一级菜单）：分钟时间靠左，同分钟多条消息归此组。 */
+const groupHeadStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '8px 4px 3px',
+  fontSize: 11,
+  fontWeight: 600,
+  lineHeight: '16px',
+  color: 'var(--dpl-fg-dim)',
+  fontVariantNumeric: 'tabular-nums',
+}
+
+/** 组头里的条数（仅同组多条时出现）。 */
+const groupCountStyle: CSSProperties = {
+  fontWeight: 400,
+  color: 'var(--dpl-fg-weak)',
 }
 
 const unreadDotStyle: CSSProperties = {
@@ -801,43 +848,51 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
           {entries.length === 0 ? (
             <div style={emptyStyle}>暂无记录 — 任一会话的对话完成后会出现在这里</div>
           ) : (
-            entries.slice(0, POP_RECENT_N).map((item) => {
-              const headLabel = item.question !== '' ? item.question : item.title
-              const unread = !readIds.has(item.id)
-              return (
-                <div
-                  key={item.id}
-                  className="dsh-done-pill-row"
-                  style={{ ...rowStyle, cursor: 'pointer' }}
-                  role="button"
-                  tabIndex={0}
-                  title={`「${item.title}」 — 点击打开会话`}
-                  onClick={() => { openSession(item.sessionId, item.id) }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      openSession(item.sessionId, item.id)
-                    }
-                  }}
-                >
-                  {unread && <span style={unreadDotStyle} aria-hidden />}
-                  <span style={rowTitleStyle}>{headLabel}</span>
-                  {item.reasonKind === 'error' && (
-                    <span style={{ flex: 'none', fontSize: 12, color: 'var(--dpl-warn)' }}>出错</span>
-                  )}
-                  <span style={rowTimeStyle}>{`回合 ${item.turn >= 0 ? item.turn + 1 : '?'} · ${formatTime(item.endedAt)}`}</span>
-                  <button
-                    type="button"
-                    className="dsh-done-pill-close"
-                    style={dismissStyle}
-                    aria-label="移除这条记录（不跳转会话）"
-                    onClick={(event) => { event.stopPropagation(); dismiss(item.id) }}
-                  >
-                    ✕
-                  </button>
+            groupByMinute(entries.slice(0, POP_RECENT_N)).map((group) => (
+              <div key={`${group.time}|${group.items[0].id}`}>
+                <div style={groupHeadStyle}>
+                  <span>{group.time === '' ? '未知时间' : group.time}</span>
+                  {group.items.length > 1 && <span style={groupCountStyle}>{`${group.items.length} 条`}</span>}
                 </div>
-              )
-            })
+                {group.items.map((item) => {
+                  const headLabel = item.question !== '' ? item.question : item.title
+                  const unread = !readIds.has(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      className="dsh-done-pill-row"
+                      style={{ ...rowStyle, cursor: 'pointer' }}
+                      role="button"
+                      tabIndex={0}
+                      title={`「${item.title}」 — 点击打开会话`}
+                      onClick={() => { openSession(item.sessionId, item.id) }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openSession(item.sessionId, item.id)
+                        }
+                      }}
+                    >
+                      {unread && <span style={unreadDotStyle} aria-hidden />}
+                      <span style={rowTitleStyle}>{headLabel}</span>
+                      {item.reasonKind === 'error' && (
+                        <span style={{ flex: 'none', fontSize: 12, color: 'var(--dpl-warn)' }}>出错</span>
+                      )}
+                      <span style={turnTagStyle}>{`回合 ${item.turn >= 0 ? item.turn + 1 : '?'}`}</span>
+                      <button
+                        type="button"
+                        className="dsh-done-pill-close"
+                        style={dismissStyle}
+                        aria-label="移除这条记录（不跳转会话）"
+                        onClick={(event) => { event.stopPropagation(); dismiss(item.id) }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            ))
           )}
         </div>,
         document.body,
