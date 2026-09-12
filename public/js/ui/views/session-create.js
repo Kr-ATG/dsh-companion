@@ -28,7 +28,16 @@ export async function createSessionInWorkspace(ws) {
     if (!ids.includes(created.sessionId)) {
       ws.sessionIds = [created.sessionId].concat(ids)
     }
-    await openChat({ sessionId: created.sessionId, title: '新会话' })
+    const newSession = {
+      sessionId: created.sessionId,
+      title: '新会话',
+      blank: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      workspaceId: ws.workspaceId,
+    }
+    state.sessions = [newSession, ...(state.sessions || [])]
+    await openChat(newSession, { locationMode: 'push' })
   } catch (err) {
     state.createError = String(err.message || err)
   } finally {
@@ -51,11 +60,26 @@ export async function createSession() {
 export async function createTodaySession() {
   if (state.creating) return
   const todayStr = getTodayDateString()
+  // 1. 如果有以今天日期命名的工作区，优先使用
   const todayMatch = (state.workspaces || []).find((w) => workspaceTitle(w) === todayStr || (w.path && w.path.endsWith(todayStr)))
   if (todayMatch) {
     await createSessionInWorkspace(todayMatch)
     return
   }
+  // 2. 如果当前有选中的工作区，直接在当前工作区新建会话
+  if (state.workspace && state.workspace.workspaceId) {
+    await createSessionInWorkspace(state.workspace)
+    return
+  }
+  // 3. 检查是否有任何现有工作区
+  if (!state.workspaces || state.workspaces.length === 0) {
+    await loadWorkspaces()
+  }
+  if (state.workspaces && state.workspaces.length > 0) {
+    await createSessionInWorkspace(state.workspaces[0])
+    return
+  }
+  // 4. 若无工作区，尝试创建今天工作区
   state.creating = true
   state.creatingWorkspaceId = 'today'
   state.createError = ''

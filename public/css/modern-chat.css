@@ -13,6 +13,16 @@
   --mp-bubble-user: #333a42;
   --mp-accent: #38bdf8;
   --mp-accent-green: #34d399;
+
+  /* 官方基底全局变量覆写（杜绝日间模式产生奶灰白色） */
+  --m-bg: #121315 !important;
+  --m-bg-raised: #18191c !important;
+  --m-bg-input: #1f2125 !important;
+  --m-border: #282b30 !important;
+  --m-text: #f0f2f5 !important;
+  --m-text-secondary: #9aa0a6 !important;
+  --m-text-tertiary: #6b7280 !important;
+  --m-ink: #f0f2f5 !important;
 }
 
 body {
@@ -261,78 +271,84 @@ body {
   padding: 2px 0 10px;
 }
 .mp-drawer-item {
-  display: block;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 12px 14px !important;
+  border: none !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: background 0.12s ease, color 0.12s ease !important;
+  box-sizing: border-box !important;
+}
+.mp-drawer-item:active {
+  background: var(--mp-bg-card) !important;
+}
+.mp-drawer-item.is-active {
+  background: var(--mp-bg-card) !important;
+}
+.mp-drawer-item-title {
+  flex: 1 !important;
+  min-width: 0 !important;
+  font-size: 14.5px !important;
+  color: #e5e7eb !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: left !important;
+}
+.mp-drawer-item.is-active .mp-drawer-item-title {
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+.mp-drawer-item-time {
+  flex: none !important;
+  font-size: 11.5px !important;
+  color: #6b7280 !important;
+  white-space: nowrap !important;
+  margin-left: 8px !important;
+}
+
+/* 抽屉底部单一纯净「设置」按钮（无头像与其余元素） */
+.mp-drawer-bottom {
+  flex: none;
+  padding-top: 12px;
+  border-top: 1px solid var(--mp-border);
+}
+.mp-drawer-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: #d1d5db;
-  font-size: 14.5px;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.12s ease, color 0.12s ease;
 }
-.mp-drawer-item:active {
-  background: var(--mp-bg-card);
-}
-.mp-drawer-item.is-active {
+.mp-drawer-settings-btn:active {
   background: var(--mp-bg-card);
   color: #ffffff;
-  font-weight: 500;
 }
-
-/* 抽屉底部用户卡片（静 + 体验版 | ✧ 500） */
-.mp-drawer-profile {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--mp-border);
-  cursor: pointer;
-}
-.mp-drawer-avatar {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #1b2620;
-  color: var(--mp-accent-green);
-  font-size: 16px;
-  font-weight: 600;
+.mp-drawer-settings-btn .mp-settings-icon {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.mp-drawer-user-meta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.mp-drawer-username {
-  font-size: 15px;
-  font-weight: 600;
-  color: #ffffff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mp-drawer-quota-tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--mp-text-secondary);
-}
-.mp-drawer-quota-tag span.sep {
-  opacity: 0.4;
+.mp-drawer-settings-btn .mp-settings-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  color: #9aa0a6;
 }
 
 /* ── 消息流与气泡样式重构 ── */
@@ -571,3 +587,129 @@ body {
 .mobile-titleInline {
   display: none !important;
 }
+
+/* ── 深度思考 & 工具调用折叠框暗色现代化设计 ── */
+.chat-disclosure {
+  margin-bottom: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  overflow: hidden !important;
+}
+
+.chat-disclosure-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #9aa0a6 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  box-sizing: border-box !important;
+}
+
+.chat-disclosure-caret {
+  flex: none !important;
+  color: #80868b !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  transition: transform 0.15s ease !important;
+}
+
+details[open] > .chat-disclosure-head .chat-disclosure-caret {
+  transform: rotate(90deg) !important;
+}
+
+.chat-disclosure-label {
+  flex: none !important;
+  color: #e5e7eb !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+}
+
+.chat-disclosure-summary {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: #6b7280 !important;
+  font-size: 12px !important;
+}
+
+.chat-disclosure-count {
+  flex: none !important;
+  color: #9ca3af !important;
+  font-size: 11.5px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+}
+
+.chat-disclosure-body {
+  padding: 10px 12px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: rgba(0, 0, 0, 0.22) !important;
+  color: #d1d5db !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+  max-height: 40vh !important;
+  overflow-y: auto !important;
+}
+
+/* 工具调用内部卡片 */
+.chat-tools-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  padding: 8px 10px !important;
+}
+
+.chat-tool-card {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 8px 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  background: #18191c !important;
+}
+
+.chat-tool-pills {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.chat-tool-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+}
+
+.chat-tool-args {
+  margin: 0 !important;
+  padding: 6px 8px !important;
+  border-radius: 6px !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  color: #9ca3af !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 11.5px !important;
+  line-height: 1.45 !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  max-height: 160px !important;
+  overflow-y: auto !important;
+}
+

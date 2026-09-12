@@ -17,9 +17,8 @@ export function storedTheme() {
 
 export function isDarkTheme() {
     const saved = storedTheme()
-    if (saved === 'dark') return true
     if (saved === 'light') return false
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    return true // 默认深色沉浸主题
   }
 
 export function applyTheme() {
@@ -29,7 +28,7 @@ export function applyTheme() {
     document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove())
     let meta = document.createElement('meta')
     meta.name = 'theme-color'
-    meta.content = dark ? '#111418' : '#f3f5f9'
+    meta.content = dark ? '#121315' : '#ffffff'
     document.head.appendChild(meta)
   }
 
