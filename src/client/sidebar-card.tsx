@@ -211,7 +211,8 @@ const wrapStyle = (wide: boolean, fontStack: string, scale: number): CSSProperti
   WebkitFontSmoothing: 'antialiased',
 } as unknown as CSSProperties)
 
-/** 小横条本体：矮条卡片，随主题（颜色走 --dpl-*，几何走内联）。 */
+/** 小横条本体：矮条卡片。几何走内联，表面色/描边/投影/过渡全部走样式表
+ *  `.dpp-bar`（pill.tsx 注入）——内联会压过 :hover 规则，hover 动效就没了。 */
 const barStyle = (scale: number): CSSProperties => ({
   boxSizing: 'border-box',
   display: 'flex',
@@ -222,19 +223,14 @@ const barStyle = (scale: number): CSSProperties => ({
   height: `calc(38px * var(--dps))`,
   padding: `0 calc(12px * var(--dps))`,
   borderRadius: `calc(10px * var(--dps))`,
-  border: '1px solid var(--dpl-panel-border)',
-  background: 'var(--dpl-panel-bg)',
-  color: 'var(--dpl-fg)',
-  boxShadow: 'var(--dpl-shell-shadow)',
   fontSize: `calc(12.5px * var(--dps))`,
   lineHeight: `calc(20px * var(--dps))`,
   whiteSpace: 'nowrap',
   overflow: 'hidden',
   cursor: 'pointer',
-  transition: 'box-shadow .18s ease, transform .18s ease',
 })
 
-/** 收起态（56px rail）：正方形图标钮。 */
+/** 收起态（56px rail）：正方形图标钮。表面属性同上走 .dpp-bar。 */
 const railStyle: CSSProperties = {
   position: 'relative',
   boxSizing: 'border-box',
@@ -244,10 +240,6 @@ const railStyle: CSSProperties = {
   width: 36,
   height: 36,
   borderRadius: 10,
-  border: '1px solid var(--dpl-panel-border)',
-  background: 'var(--dpl-panel-bg)',
-  color: 'var(--dpl-fg)',
-  boxShadow: 'var(--dpl-shell-shadow)',
   cursor: 'pointer',
 }
 
@@ -496,10 +488,11 @@ function RunOrb(): JSX.Element {
   )
 }
 
-/** 空闲灯泡线稿（与悬浮胶囊同款极简风）。 */
+/** 空闲灯泡线稿（与悬浮胶囊同款极简风）；hover 微倾放大走 .dpp-bulb。 */
 function BulbIcon(): JSX.Element {
   return (
     <svg
+      className="dpp-bulb"
       width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flex: 'none' }}
     >
@@ -513,6 +506,7 @@ function BulbIcon(): JSX.Element {
 function ChevronIcon(): JSX.Element {
   return (
     <svg
+      className="dpp-chev"
       width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flex: 'none' }}
     >
@@ -537,6 +531,8 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
   const [runInfo, setRunInfo] = useState<Record<string, { since: number; question: string; title: string }>>({})
   const [open, setOpen] = useState(false)
   const [nowTick, setNowTick] = useState(() => Date.now())
+  /** 首轮轮询是否已回填数据：完成/开始动画只在拿到基线后的**变化**时播。 */
+  const [hydrated, setHydrated] = useState(false)
   // 弹窗定位锚点：卡片矩形（视口坐标），portal 用 fixed 定位。
   const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null)
   const cardRef = useRef<HTMLButtonElement | null>(null)
@@ -593,6 +589,8 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
             }
             setRunInfo(next)
           }
+          // 首轮成功响应：确立 running/unread 基线（此后变化才播过渡动画）。
+          setHydrated(true)
         })
         .catch(() => { /* 服务暂不可达时静默，下轮重试 */ })
     }
@@ -623,6 +621,52 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
   const latestLabel = latest !== undefined
     ? (latest.question !== '' ? latest.question : latest.title)
     : ''
+
+  // ---- 状态过渡一次性动画（样式见 pill.tsx 的 .dpp-fx-* / dppBreath）----
+  // start：空闲→有进行中（0→n）；done：未读完成数增加。
+  // 先摘类、下一帧再挂：保证同类动画连续触发时也能从头重播。
+  const [barFx, setBarFx] = useState<'start' | 'done' | null>(null)
+  const barFxTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const barFxRaf = useRef<number | null>(null)
+  const prevRunningRef = useRef(-1)
+  const prevUnreadRef = useRef(-1)
+
+  const fireBarFx = useCallback((kind: 'start' | 'done'): void => {
+    if (barFxTimer.current !== null) clearTimeout(barFxTimer.current)
+    if (barFxRaf.current !== null) cancelAnimationFrame(barFxRaf.current)
+    setBarFx(null)
+    barFxRaf.current = requestAnimationFrame(() => {
+      barFxRaf.current = null
+      setBarFx(kind)
+      // 动画最长 .85s（dppFxDone），留 1s 窗口后摘类回到常态。
+      barFxTimer.current = setTimeout(() => {
+        barFxTimer.current = null
+        setBarFx(null)
+      }, 1000)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
+    const n = runningSessions.length
+    const prev = prevRunningRef.current
+    prevRunningRef.current = n
+    if (prev === -1) return // 基线帧（首轮数据刚落地）不播动画
+    if (prev === 0 && n > 0) fireBarFx('start')
+  }, [hydrated, runningSessions.length, fireBarFx])
+
+  useEffect(() => {
+    if (!hydrated) return
+    const prev = prevUnreadRef.current
+    prevUnreadRef.current = unreadCount
+    if (prev === -1) return
+    if (unreadCount > prev) fireBarFx('done')
+  }, [hydrated, unreadCount, fireBarFx])
+
+  useEffect(() => () => {
+    if (barFxTimer.current !== null) clearTimeout(barFxTimer.current)
+    if (barFxRaf.current !== null) cancelAnimationFrame(barFxRaf.current)
+  }, [])
 
   // 实时时钟：弹窗展开且有进行中任务时每秒走字。
   useEffect(() => {
@@ -762,7 +806,8 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
           ref={cardRef}
           type="button"
           style={barStyle(scale)}
-          className="dsh-done-pill-row"
+          className={`dpp-bar${barFx !== null ? ` dpp-fx-${barFx}` : ''}`}
+          data-state={runningSessions.length > 0 ? 'running' : 'idle'}
           aria-label={summaryLabel}
           aria-expanded={open}
           title="悬停查看进行中与最近完成的对话"
@@ -772,9 +817,15 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
             if (event.key === 'Escape') setOpen(false)
           }}
         >
-          {runningSessions.length > 0 ? <RunOrb /> : <BulbIcon />}
-          <span style={barLabelStyle}>{barText}</span>
-          {unreadCount > 0 && <span style={countBadgeStyle}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          {/* key 随状态切换重挂载 → 播放 .dpp-icon-swap 弹入动画 */}
+          <span className="dpp-icon-swap" key={runningSessions.length > 0 ? 'run' : 'idle'} aria-hidden>
+            {runningSessions.length > 0 ? <RunOrb /> : <BulbIcon />}
+          </span>
+          {/* key 随文案变化重挂载 → 新摘要淡入上浮 */}
+          <span className="dpp-bar-label" key={`label:${barText}`} style={barLabelStyle}>{barText}</span>
+          {unreadCount > 0 && (
+            <span key={`badge:${unreadCount}`} className="dpp-badge-pop" style={countBadgeStyle}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+          )}
           <ChevronIcon />
         </button>
       ) : (
@@ -782,6 +833,8 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
           ref={cardRef}
           type="button"
           style={railStyle}
+          className={`dpp-bar${barFx !== null ? ` dpp-fx-${barFx}` : ''}`}
+          data-state={runningSessions.length > 0 ? 'running' : 'idle'}
           aria-label={summaryLabel}
           aria-expanded={open}
           title="对话动态：悬停查看进行中与最近完成"
@@ -791,8 +844,12 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
             if (event.key === 'Escape') setOpen(false)
           }}
         >
-          {runningSessions.length > 0 ? <RunOrb /> : <BulbIcon />}
-          {totalBadge > 0 && <span style={railBadgeStyle}>{totalBadge > 99 ? '99+' : totalBadge}</span>}
+          <span className="dpp-icon-swap" key={runningSessions.length > 0 ? 'run' : 'idle'} aria-hidden>
+            {runningSessions.length > 0 ? <RunOrb /> : <BulbIcon />}
+          </span>
+          {totalBadge > 0 && (
+            <span key={`rail-badge:${totalBadge}`} className="dpp-badge-pop" style={railBadgeStyle}>{totalBadge > 99 ? '99+' : totalBadge}</span>
+          )}
         </button>
       )}
       {open && createPortal(

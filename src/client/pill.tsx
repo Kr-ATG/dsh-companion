@@ -558,6 +558,7 @@ body[data-ds-dark-theme] .dsh-done-pill-shell{
 @media (prefers-reduced-motion:reduce){
   .dsh-done-pill-shell,.dp-run-spin,.dsh-done-pill-row{animation:none !important}
   .dsh-done-pill-shell,.dsh-done-pill-main .dpl-chev,.dsh-done-pill-row{transition:none !important}
+  [data-dpp-card],.dpp-bar,.dpp-bar .dpp-chev,.dpp-bar .dpp-bulb,.dpp-bar-label,.dpp-icon-swap,.dpp-badge-pop{animation:none !important;transition:none !important}
 }
 /* 面板内可点行（任务行 / 完成记录卡）：hover 浅墨底 + 左侧 2px 墨条。 */
 .dsh-done-pill-row{transition:background .12s ease,box-shadow .12s ease}
@@ -569,6 +570,57 @@ body[data-ds-dark-theme] .dsh-done-pill-shell{
 .dsh-done-pill-link{transition:color .12s ease}
 .dsh-done-pill-link:hover{text-decoration:underline}
 .dsh-done-pill-link:disabled{color:var(--dpl-fg-weak);cursor:default;text-decoration:none}
+/* ── 左下角小横条（卡片形态 .dpp-bar，见 sidebar-card.tsx）：
+   hover 进出 + 任务开始/完成的状态过渡动效。
+   ⚠ 表面属性（底色/描边/投影/文字色）必须留在类上而不是内联：
+   内联样式优先级高于 :hover 规则，写内联会让 hover 反馈整个失效。
+   hover 移出不需要单独规则——transition 自动反向播放。 ── */
+.dpp-bar{
+  border:1px solid var(--dpl-panel-border);
+  background:var(--dpl-panel-bg);
+  color:var(--dpl-fg);
+  box-shadow:var(--dpl-shell-shadow);
+  transition:transform .28s cubic-bezier(.32,.72,0,1),box-shadow .28s cubic-bezier(.32,.72,0,1),
+    border-color .28s ease,background-color .28s ease;
+}
+.dpp-bar:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--dpl-shell-shadow-hover);
+  border-color:color-mix(in srgb,var(--dpl-fg) 20%,transparent);
+  background:color-mix(in srgb,var(--dpl-panel-bg) 94%,var(--dpl-fg));
+}
+.dpp-bar:active{transform:translateY(0) scale(.985)}
+.dpp-bar:focus-visible{outline:2px solid var(--dpl-fg);outline-offset:2px}
+/* 箭头 hover 右移、灯泡 hover 微倾放大（与悬浮胶囊 dpl-chev 同节奏的微交互）。 */
+.dpp-bar .dpp-chev{transition:transform .28s cubic-bezier(.32,.72,0,1),color .2s ease}
+.dpp-bar:hover .dpp-chev{transform:translateX(2px);color:var(--dpl-fg)}
+.dpp-bar .dpp-bulb{transition:transform .28s cubic-bezier(.32,.72,0,1)}
+.dpp-bar:hover .dpp-bulb{transform:scale(1.15) rotate(-8deg)}
+/* 卡片挂载入场：只淡入不位移——弹窗 portal 挂在本容器内用 fixed 定位，
+   祖先留 transform 会把 fixed 变成相对定位（弹窗错位）。 */
+@keyframes dppCardIn{from{opacity:0}to{opacity:1}}
+[data-dpp-card]{animation:dppCardIn .45s ease backwards}
+/* 进行中常态：有条目时呼吸辉光（hover / 一次性动画期间让位，避免抢通道）。 */
+@keyframes dppBreath{0%,100%{box-shadow:var(--dpl-shell-shadow)}50%{box-shadow:var(--dpl-shell-shadow-unread)}}
+.dpp-bar[data-state="running"]:not(:hover):not(.dpp-fx-start):not(.dpp-fx-done){
+  animation:dppBreath 2.6s ease-in-out infinite;
+}
+/* 状态过渡一次性动画：任务开始 = 弹性 pop；有新完成 = 轻弹跳 + 绿色高亮扫过。
+   由组件在计数变化时挂 .dpp-fx-* 类、动画窗口结束后摘除（见 sidebar-card）。 */
+@keyframes dppFxStart{0%{transform:scale(.92);opacity:.55}55%{transform:scale(1.04);opacity:1}100%{transform:scale(1)}}
+@keyframes dppFxDone{
+  0%{transform:translateY(0);box-shadow:var(--dpl-shell-shadow)}
+  25%{transform:translateY(-3px);box-shadow:0 0 0 3px color-mix(in srgb,var(--dpl-ok) 38%,transparent),var(--dpl-shell-shadow-unread)}
+  60%{transform:translateY(0)}
+  100%{transform:translateY(0);box-shadow:var(--dpl-shell-shadow)}
+}
+.dpp-bar.dpp-fx-start{animation:dppFxStart .55s cubic-bezier(.32,.72,0,1)}
+.dpp-bar.dpp-fx-done{animation:dppFxDone .85s cubic-bezier(.32,.72,0,1)}
+/* 条上文案 / 图标 / 徽标随内容切换淡入弹跳（组件用 key 变化重挂载触发）。 */
+@keyframes dppSwapIn{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+.dpp-bar-label{animation:dpLineIn .3s cubic-bezier(.32,.72,0,1) backwards}
+.dpp-icon-swap{display:inline-flex;animation:dppSwapIn .45s cubic-bezier(.32,.72,0,1) backwards}
+.dpp-badge-pop{animation:dpPop .35s cubic-bezier(.32,.72,0,1)}
 /* 面板滚动条：最细细条（3px、无轨道、无上下箭头按钮）——作用于面板本身
    与内部所有可滚动元素（记录卡内的 <pre> 全文等）。
    ⚠ 不能同时写标准 scrollbar-width/scrollbar-color：现代 Chromium 一旦
