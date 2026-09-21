@@ -71,23 +71,81 @@ test('destroy clears the container so unmount leaves nothing behind', () => {
   assert.equal(container.children.length, 0, 'destroy left nodes behind')
 })
 
+/**
+ * The float pill's main button: the JSX branch that decides the icon.
+ *
+ * Sliced by marker rather than a fixed character window. The branch carries a
+ * long explanatory comment, so any hardcoded offset silently drifts out of
+ * range and the assertions start inspecting unrelated code.
+ */
+function floatMainBranch(source) {
+  // Slice exactly the icon ternary: from its opening `unreadCount > 0` test to
+  // the mascot element itself. Starting at that test (rather than the button or
+  // a wider window) keeps the a11y aria-label, which legitimately names the
+  // latest session, out of scope.
+  const stripped = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const idle = stripped.indexOf('<IdleRobot size=')
+  assert.ok(idle >= 0, 'pill.tsx never renders the mascot')
+  const check = stripped.lastIndexOf('style={checkBadgeStyle}', idle)
+  assert.ok(check >= 0, 'no checkBadge branch in the icon ternary')
+  const start = stripped.lastIndexOf('unreadCount > 0', check)
+  assert.ok(start >= 0, 'the icon ternary is not gated on unread')
+  return stripped.slice(start, idle)
+}
+
 test('the pill renders the mascot only in the fully idle state', () => {
   // Guards the wiring: the engine is the only element that continuously costs
-  // frames, so it must not run while there is an unread result or a running task.
+  // frames, so it must not run while there is a running task.
   const source = readFileSync(PILL, 'utf8')
   assert.ok(source.includes("from './idle-robot'"), 'pill.tsx does not import the mascot')
   assert.ok(source.includes('<IdleRobot'), 'pill.tsx never renders the mascot')
-  // Anchor on the JSX render call, not the import line (which also matches).
-  const start = source.indexOf('<IdleRobot size=')
-  assert.ok(start >= 0, 'pill.tsx has no <IdleRobot size=... /> render call')
-  const branch = source.slice(Math.max(0, start - 300), start + 200)
+  const branch = floatMainBranch(source)
   assert.ok(
     branch.includes('runningSessions.length > 0'),
     'the mascot branch does not check for running sessions',
   )
   assert.ok(
-    branch.includes('latest !== undefined'),
-    'the mascot branch does not check for an existing record',
+    branch.includes('unreadCount > 0'),
+    'the mascot branch does not check for unread results',
+  )
+})
+
+test('the float mascot is gated on unread, never on record history', () => {
+  // Regression: the float pill used to gate the mascot on the existence of a
+  // completion record (`latest !== undefined`). The entries list is a completion
+  // HISTORY the host keeps (up to 50 items) and never clears, so after a single
+  // finished turn it is permanently non-empty and the mascot could never mount
+  // again. The card half gated on unread and was fine, so the two forms
+  // disagreed: in float mode the robot was simply never visible.
+  const stripped = readFileSync(PILL, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+  const idle = stripped.indexOf('<IdleRobot size=')
+  assert.ok(idle >= 0, 'pill.tsx never renders the mascot')
+
+  // Walk back from the mascot to the `unreadCount > 0 && latest !== undefined`
+  // test that opens the icon ternary — that is the enclosing gate.
+  const check = stripped.lastIndexOf('style={checkBadgeStyle}', idle)
+  assert.ok(check >= 0, 'no checkBadge branch in the icon ternary')
+  const gate = stripped.lastIndexOf('unreadCount > 0', check)
+  assert.ok(gate >= 0, 'the icon ternary is not gated on unread')
+  const closed = stripped.slice(gate, idle)
+
+  // The alive-on-unread branch is the badge; the mascot is the else-branch, so
+  // the mascot must NOT consult the record history. `latest` is allowed only as
+  // part of the unread guard above it.
+  const idleGate = stripped.slice(check, idle)
+  assert.ok(
+    !idleGate.includes('latest'),
+    'the float mascot branch is gated on record history again: the robot will never mount',
+  )
+  assert.ok(
+    !idleGate.includes('entries.length'),
+    'the float mascot branch is gated on the entries history length again',
+  )
+  assert.ok(
+    closed.includes('unreadCount > 0'),
+    'the float mascot is not gated on unread',
   )
 })
 
