@@ -265,5 +265,17 @@ for (const expected of [
 }
 pass(`registered ${registeredSlots.length} slot entries: ${slotIds.join(', ') || '(none)'}`)
 
+// The vendored OpenBotMotion mascot must be present in the browser bundle. It is
+// the only element that continuously costs frames, so a silent bundling failure
+// (dead import, dropped vendor file) would otherwise only show as "no robot".
+{
+  const code = readFileSync(CLIENT, 'utf8')
+  if (!code.includes('OpenBotMotion')) fail('the mascot engine is missing from the client bundle')
+  else pass('mascot engine (OpenBotMotion) is bundled')
+
+  if (!code.includes('dpl-idle-bot')) fail('the mascot container class is missing from the bundle')
+  else pass('mascot container class is bundled')
+}
+
 console.log(`\n${process.exitCode ? 'SMOKE FAILED' : 'SMOKE PASSED'} — ${CLIENT}`)
 process.exit(process.exitCode ?? 0)

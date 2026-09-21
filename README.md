@@ -45,12 +45,51 @@ dsh plugin --profile web add github:Kr-ATG/dsh-companion
 - 附带健康提醒（休息时段 / 凌晨）与外观设置（大小 65%–160% / 8 种字体），两种形态共用；
 - 布局一次调平：卡片独占首行，手机图标留在设置行右侧原位（`:has()` 双锁注入式 CSS，悬浮形态下自动失效）。
 
+### 空闲时的待机机器人动画
+
+**没有**未读记录、**也没有**任务在跑时，胶囊最左侧的图标会变成一台**实时渲染的
+动画机器人**——用的就是上游那套零依赖 SVG 渲染引擎 **OpenBotMotion**（MIT，7 种机型）。
+
+十个动作，各有小性格：
+
+| 动作 | 性格 | | 动作 | 性格 |
+| --- | --- | --- | --- | --- |
+| `blink` | 眨眼回神 | | `hop` | 果冻小跳 |
+| `scan` | 左右巡视 | | `balance` | 摇摇平衡 |
+| `tilt` | 歪头琢磨 | | `sneeze` | 憋个喷嚏 |
+| `nod` | 点头招呼 | | `sleep` | 打盹惊醒 |
+| `stretch` | 伸个懒腰 | | `dance` | 稀有彩蛋，每 20～40 分钟一次 |
+
+调度规则逐条移植自 macOS 版 `IdleDirector`：两次动作之间休息 5～10 秒、**不会连着
+重复同一个动作**、`dance` 每 20～40 分钟一次、系统开启「减少动态效果」时定格不动。
+等待期间机器人保持引擎自带的连续待机动画。
+
+**两种形态都有这个动画**：悬浮胶囊（顶部浮窗）与卡片（左下角小横条 / 收起时的图标钮）
+共用同一套调度策略，形态只决定尺寸（16～22px）。
+
+**只在完全空闲时才开**（无未读、无进行中）：有未读结果时用线稿灯泡，有任务在跑时用
+下面那段运行中笔画——机器人是唯一持续吃帧的元素，有事发生时不抢戏。
+
+### 运行中的加载动画
+
+任务进行中时，指示器不是普通「转圈 spinner」，而是一段**带笔尖的短笔画**：蓝色实色、
+圆头线帽、占圆周 70%，沿半径 9.5 的圆**匀速**走，角速度恒为 2π/3 rad/s——**一圈 3 秒**。
+数字压在笔画中心的圆上。移植自 dsh-notch 的原生 `StatusOrbit`。
+
+配色同样取自上游 `NotchTokens` / `StatusOutcome`：运行中 `#4d6bfe`（DeepSeek 蓝）、
+成功 `#34c759`（Apple systemGreen）、失败 `#ff4000`、待决定 `#f2ff14`。
+
+> 为什么用 SVG 圆弧而不是 CSS `conic-gradient`：上游的观感是「**一笔**」，需要
+> `stroke-linecap:round` 的圆头端点，渐变环画不出圆头。旧版用 conic 渐变环、颜色有
+> 淡出、看着发虚，本轮换掉了。
+
 ## 自测
 
 ```bash
 node build.mjs              # 构建 lib/index.js（宿主）+ lib/client.js（浏览器）
+node --test tests/*.test.mjs # 机器人十个动作姿态/引擎出图/只在空闲挂载 + 运行笔画几何与转速
 node scripts/smoke-host.mjs # 宿主：路由/事件/403/零外部依赖/行数规范
-node scripts/smoke-client.mjs # 浏览器：9 个槽位注册 + 只依赖 react 系
+node scripts/smoke-client.mjs # 浏览器：9 个槽位注册 + 只依赖 react 系 + 引擎已打进包
 ```
 
 构建产物 `lib/` 随仓库提交（pnpm≥10 不跑 git 依赖的构建脚本，装完即用）；
@@ -67,4 +106,9 @@ node scripts/smoke-client.mjs # 浏览器：9 个槽位注册 + 只依赖 react 
 
 - 手机远程部分源自 `dsh-mobile-plus`（Apache-2.0，见 `LICENSE`、`NOTICE`；
   配对面板移植自 `@linxin666/dsh-web-all` 的远程访问页；QR 库为 Nayuki/MIT，见源码头）；
-- 对话胶囊部分源自 `dsh-done-pill`（MIT，见 `LICENSE-MIT`；最早移植自 dsh-webui 的 done-pill）。
+- 对话胶囊部分源自 `dsh-done-pill`（MIT，见 `LICENSE-MIT`；最早移植自 dsh-webui 的 done-pill）；
+- 待机机器人动画用 [OpenBotMotion](https://github.com/aa2246740/open-bot-motion)（MIT，
+  许可证全文见 `LICENSE.open-bot-motion`，声明见 `NOTICE`）。引擎是 **vendored** 而非
+  引依赖：上游是 UMD 包，直接 import 会在浏览器包的工厂壳里走进 CommonJS 分支、
+  把本插件自己的 exports 冲掉——所以由 `scripts/vendor-idle.mjs` 转成 ESM 落到
+  `src/vendor/`（生成物随仓库提交）。

@@ -33,6 +33,8 @@ import {
   type AppearanceConfig, type PillMode,
 } from './stores'
 import { SidebarBarCard, ensureCardLayoutCss, setSidebarSessionsAccessor } from './sidebar-card'
+import { IdleRobot } from './idle-robot'
+import { RunningArc } from './status-orbit'
 
 /** shell.overlay 槽位无 owner props（见 DSH slot-catalog），此处仅占位。 */
 export type DonePillProps = Record<string, never>
@@ -436,13 +438,44 @@ function formatElapsed(ms: number): string {
  * 组件内联样式只负责几何，颜色全部引用变量。
  */
 function ensurePillKeyframes(): void {
-  if (document.getElementById(PILL_STYLE_ID) !== null) return
+  // 升级安全：早退会造成「旧样式表还在、新规则永远进不来」。
+  // 插件更新后（bundle 换了新代码，但页面里那张 <style> 还是旧的），
+  // 动画/新类名全部失效——运行中笔画会渲染成静态圆环，且控制台零报错。
+  // 先比对内容指纹：不一样就删掉重注入；一样才早退。
+  const existing = document.getElementById(PILL_STYLE_ID)
+  if (existing !== null) {
+    // 惰性计算：CSS_REV 依赖 PILL_CSS，而 PILL_CSS 声明在本函数之后，
+    // 在模块顶层求值会撞上 TDZ（ReferenceError）。
+    if (existing.getAttribute('data-css-rev') === cssRevision()) return
+    existing.remove()
+  }
   const style = document.createElement('style')
   style.id = PILL_STYLE_ID
   style.dataset.plugin = 'dsh-done-pill'
   style.dataset.pluginCss = 'webui/done-pill'
+  // 内容指纹：直接由样式表文本算出，改样式必然改指纹，不会忘记同步。
+  style.setAttribute('data-css-rev', cssRevision())
   style.textContent = PILL_CSS
   document.head.appendChild(style)
+}
+
+/**
+ * 样式表内容指纹（djb2 + 长度）。
+ *
+ * 不用手写版本号（容易忘记同步），直接对 PILL_CSS 哈希：任何规则改动都会
+ * 改变指纹，旧样式表因此会被识别并替换。
+ *
+ * 惰性求值 + 缓存：PILL_CSS 声明在本文件靠后位置，顶层求值会撞 TDZ。
+ */
+let cssRevCache: string | undefined
+function cssRevision(): string {
+  if (cssRevCache !== undefined) return cssRevCache
+  let hash = 5381
+  for (let i = 0; i < PILL_CSS.length; i += 1) {
+    hash = ((hash << 5) + hash + PILL_CSS.charCodeAt(i)) >>> 0
+  }
+  cssRevCache = PILL_CSS.length.toString(36) + '-' + hash.toString(36)
+  return cssRevCache
 }
 
 const PILL_STYLE_ID = 'dsh-done-pill-css'
@@ -525,20 +558,22 @@ body[data-ds-dark-theme] .dsh-done-pill-shell{
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dpl-warn) 22%,transparent);
   border-radius:999px;padding:2px 9px;
 }
-/* 运行中指示：一圈渐隐墨色弧线匀速旋转（1.1s/圈，conic + 圆环 mask）。 */
-.dp-run-orb{position:relative;flex:none;width:calc(15px * var(--dps));height:calc(15px * var(--dps))}
-.dp-run-spin{
-  position:absolute;inset:0;border-radius:50%;
-  background:conic-gradient(from 0deg,
-    color-mix(in srgb,var(--dpl-fg) 0%,transparent) 0deg,
-    var(--dpl-fg) 250deg,
-    color-mix(in srgb,var(--dpl-fg) 0%,transparent) 320deg);
-  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.4px),#000 calc(100% - 2px));
-  mask:radial-gradient(farthest-side,transparent calc(100% - 2.4px),#000 calc(100% - 2px));
-  animation:dpSpin 1.1s linear infinite;
-  will-change:transform;
-}
-@keyframes dpSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+/* 待机机器人（OpenBotMotion）：容器由 CSS 定尺寸，引擎把 SVG 按 100% 铺进去。
+   引擎自带 viewBox 留白过大，idle-robot.tsx 会把它收窄到实测姿态边界。 */
+.dpl-idle-bot{flex:none;position:relative;width:calc(22px * var(--dps));height:calc(22px * var(--dps));display:inline-flex;align-items:center;justify-content:center;overflow:visible}
+.dpl-idle-bot svg{display:block;width:100%;height:100%;overflow:visible}
+/* 卡片形态的机器人：小横条用 16px、rail 图标钮用 20px（容器尺寸显式给足，
+   否则引擎的 SVG 没有盒子可铺）。 */
+.dpp-idle-bot{width:16px;height:16px}
+.dpp-idle-bot svg{display:block;width:100%;height:100%;overflow:visible}
+[data-dpp-card="rail"] .dpp-idle-bot{width:20px;height:20px}
+/* 运行中笔画（移植自 dsh-notch 的 StatusOrbit）：一段 70% 圆周的蓝色实色笔画，
+   圆头线帽，匀速自转。角速度 2π/3 rad/s = 一圈 3 秒（上游 DecisionSpin.runningVelocity）。
+   ⚠ 用 SVG 圆弧而不是 conic-gradient：上游是「一笔」的观感，需要 stroke-linecap:round
+   的圆头端点，渐变环画不出来。 */
+.dpl-run-arc-wrap{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center}
+.dpl-run-arc{display:block;animation:dpOrbitSpin 3s linear infinite;transform-origin:50% 50%}
+@keyframes dpOrbitSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 /* 灯泡徽章：无底无环的单色线稿，hover 轻微放大（微交互）。 */
 .dpl-bulb-badge{color:var(--dpl-fg-dim);transition:transform .25s cubic-bezier(.32,.72,0,1)}
 .dsh-done-pill-main:hover .dpl-bulb-badge{transform:scale(1.08)}
@@ -556,7 +591,7 @@ body[data-ds-dark-theme] .dsh-done-pill-shell{
 .dsh-done-pill-main:hover .dpl-chev{transform:translateX(2px);color:var(--dpl-fg)}
 .dsh-done-pill-row{animation:dpRowIn .32s cubic-bezier(.32,.72,0,1) backwards}
 @media (prefers-reduced-motion:reduce){
-  .dsh-done-pill-shell,.dp-run-spin,.dsh-done-pill-row{animation:none !important}
+  .dsh-done-pill-shell,.dpl-run-arc,.dsh-done-pill-row{animation:none !important}
   .dsh-done-pill-shell,.dsh-done-pill-main .dpl-chev,.dsh-done-pill-row{transition:none !important}
   [data-dpp-card],.dpp-bar,.dpp-bar .dpp-chev,.dpp-bar .dpp-bulb,.dpp-bar-label,.dpp-icon-swap,.dpp-badge-pop{animation:none !important;transition:none !important}
 }
@@ -905,8 +940,7 @@ const runningBlockStyle = (hasRunning: boolean): CSSProperties => ({
   cursor: 'pointer',
 })
 
-/** 运行中指示容器（正常加载转圈弧线）：几何/mask/动画走 CSS 类 .dp-run-orb*，
- *  颜色走 --dpl-fg（随主题）。 */
+/** 运行中指示容器：SVG 笔画自带尺寸与颜色（见 status-orbit.tsx）。 */
 const runOrbStyle: CSSProperties = { flex: 'none' }
 
 /** 面板内列表项的墨点：面板不参与胶囊缩放，固定 8px 小圆。 */
@@ -1970,8 +2004,8 @@ export function DonePill(props: DonePillProps): JSX.Element | null {
                 if (first !== undefined) openSession(first.id)
               }}
             >
-              <span className="dp-run-orb" style={runOrbStyle} aria-hidden>
-                <span className="dp-run-spin" />
+              <span className="dpl-run-arc-wrap" style={runOrbStyle} aria-hidden>
+                <RunningArc size={Math.max(11, Math.round(15 * appearance.scale))} />
               </span>
               <span>{runningSessions.length}</span>
             </button>
@@ -2003,8 +2037,12 @@ export function DonePill(props: DonePillProps): JSX.Element | null {
           {unreadCount > 0 && latest !== undefined ? (
             <span style={checkBadgeStyle} aria-hidden />
           ) : (
-            // 图标：单色线稿灯泡徽章（颜色随主题由 .dpl-bulb-badge 提供）。
-            <BulbBadge scale={appearance.scale} />
+            // 图标：有记录可点（已读态）时用线稿灯泡；完全空闲时才让
+            // OpenBotMotion 机器人接管——它是唯一会持续吃帧的元素，只在
+            // 「无事发生」时才值得开。
+            latest !== undefined || runningSessions.length > 0
+              ? <BulbBadge scale={appearance.scale} />
+              : <IdleRobot size={Math.max(14, Math.round(16 * appearance.scale))} />
           )}
           <span
             ref={labelRef}

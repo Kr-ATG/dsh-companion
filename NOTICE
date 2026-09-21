@@ -5,3 +5,26 @@ This product includes QR Code generator library (TypeScript)
 Copyright (c) Project Nayuki.
 SPDX-License-Identifier: MIT
 https://www.nayuki.io/page/qr-code-generator-library
+
+--------------------------------------------------------------------------------
+
+OpenBotMotion — pure code-driven SVG mascot animation engine
+Version:  1.0.0
+Upstream: https://github.com/aa2246740/open-bot-motion
+License:  MIT
+
+Used by the floating pill's idle mascot (src/client/idle-robot.tsx) and the nine
+idle motions the director schedules (src/client/idle-director.ts).
+
+Vendored as ESM by scripts/vendor-idle.mjs, because the upstream sources are a
+UMD bundle (tools/idle/renderer.js) plus a browser <script> (tools/idle/motions.js)
+and neither is directly importable:
+
+  tools/idle/renderer.js  ->  src/vendor/open-bot-motion.js
+  tools/idle/motions.js   ->  src/vendor/idle-motions.js
+
+A UMD bundle would take its CommonJS branch inside the browser bundle's factory
+wrapper and clobber dsh-companion's own exports, so it is converted rather than
+depended on.
+
+Full upstream MIT text: tools/idle/LICENSE.open-bot-motion

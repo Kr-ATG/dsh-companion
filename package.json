@@ -1,7 +1,7 @@
 {
   "name": "dsh-companion",
   "version": "1.0.0",
-  "description": "DSH 伴侣插件：手机远程（扫码配对、文字文件传输）+ 对话完成胶囊（左下角小横条卡片 / 顶部悬浮浮窗可切换、悬停看进行中与最近完成）。由 dsh-mobile-plus 与 dsh-done-pill 合并而来，路由与设置零迁移。零 DSH 源码改动。",
+  "description": "DSH 伴侣插件：手机远程（扫码配对、文字文件传输）+ 对话完成胶囊（左下角小横条卡片 / 顶部悬浮浮窗可切换、悬停看进行中与最近完成、空闲时播放 OpenBotMotion 待机机器人动画）。由 dsh-mobile-plus 与 dsh-done-pill 合并而来，路由与设置零迁移。零 DSH 源码改动。",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -32,6 +32,7 @@
     "README.md",
     "LICENSE",
     "LICENSE-MIT",
+    "LICENSE.open-bot-motion",
     "NOTICE",
     "AGENTS.md"
   ],
@@ -53,6 +54,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
+    "test": "node --test tests/*.test.mjs",
     "smoke": "node scripts/smoke-host.mjs && node scripts/smoke-client.mjs",
     "smoke:host": "node scripts/smoke-host.mjs",
     "smoke:client": "node scripts/smoke-client.mjs"

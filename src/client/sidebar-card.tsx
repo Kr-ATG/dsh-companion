@@ -20,6 +20,8 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { createPortal } from 'react-dom'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { appearanceStore, enabledStore, fontStackOf, modeStore, type AppearanceConfig } from './stores'
+import { IdleRobot } from './idle-robot'
+import { RunningArc } from './status-orbit'
 
 /** sidebar.footer.action 的 owner props（ui-sidebar 契约）：只有列宽状态。 */
 export interface SidebarBarCardProps {
@@ -479,11 +481,11 @@ const emptyStyle: CSSProperties = {
   color: 'var(--dpl-fg-weak)',
 }
 
-/** 运行中转圈弧线（复用胶囊的 .dp-run-spin 动画，颜色随主题）。 */
+/** 运行中笔画（与悬浮胶囊同款，见 status-orbit.tsx）。 */
 function RunOrb(): JSX.Element {
   return (
-    <span className="dp-run-orb" style={{ flex: 'none' }} aria-hidden>
-      <span className="dp-run-spin" />
+    <span className="dpl-run-arc-wrap" style={{ flex: 'none' }} aria-hidden>
+      <RunningArc size={15} />
     </span>
   )
 }
@@ -817,9 +819,15 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
             if (event.key === 'Escape') setOpen(false)
           }}
         >
-          {/* key 随状态切换重挂载 → 播放 .dpp-icon-swap 弹入动画 */}
-          <span className="dpp-icon-swap" key={runningSessions.length > 0 ? 'run' : 'idle'} aria-hidden>
-            {runningSessions.length > 0 ? <RunOrb /> : <BulbIcon />}
+          {/* key 随状态切换重挂载 → 播放 .dpp-icon-swap 弹入动画。
+              完全空闲（无未读、无进行中）时才让 OpenBotMotion 机器人接管：
+              它是唯一持续吃帧的元素，有事发生时不抢戏。 */}
+          <span className="dpp-icon-swap" key={runningSessions.length > 0 ? 'run' : unreadCount > 0 ? 'done' : 'idle'} aria-hidden>
+            {runningSessions.length > 0
+              ? <RunOrb />
+              : unreadCount > 0
+                ? <BulbIcon />
+                : <IdleRobot size={16} className="dpp-idle-bot" />}
           </span>
           {/* key 随文案变化重挂载 → 新摘要淡入上浮 */}
           <span className="dpp-bar-label" key={`label:${barText}`} style={barLabelStyle}>{barText}</span>
@@ -844,8 +852,12 @@ export function SidebarBarCard(props: SidebarBarCardProps): JSX.Element | null {
             if (event.key === 'Escape') setOpen(false)
           }}
         >
-          <span className="dpp-icon-swap" key={runningSessions.length > 0 ? 'run' : 'idle'} aria-hidden>
-            {runningSessions.length > 0 ? <RunOrb /> : <BulbIcon />}
+          <span className="dpp-icon-swap" key={runningSessions.length > 0 ? 'run' : totalBadge > 0 ? 'done' : 'idle'} aria-hidden>
+            {runningSessions.length > 0
+              ? <RunOrb />
+              : totalBadge > 0
+                ? <BulbIcon />
+                : <IdleRobot size={20} className="dpp-idle-bot" />}
           </span>
           {totalBadge > 0 && (
             <span key={`rail-badge:${totalBadge}`} className="dpp-badge-pop" style={railBadgeStyle}>{totalBadge > 99 ? '99+' : totalBadge}</span>

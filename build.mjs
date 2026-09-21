@@ -90,6 +90,11 @@ const clientBundle = {
   sourcemap: true,
   logLevel: 'info',
   external: CLIENT_EXTERNAL,
+  // The vendored OpenBotMotion mascot engine (src/vendor/) has one upstream
+  // duplicate object key (`scale` twice with the same value). It is harmless,
+  // and the file is third-party MIT code re-vendored verbatim, so the warning is
+  // muted here rather than patched into the copy. Any other warning still shows.
+  logOverride: { 'duplicate-object-key': 'silent' },
   // Everything under @deepseek-ai/ stays a runtime require.
   plugins: [{
     name: 'companion-external-platform',
